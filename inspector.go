@@ -118,7 +118,7 @@ func (insp *Inspector) SetOrders(vTypes ...interface{}) {
 			}
 		}
 	}
-	for label, _ := range insp.vTypes {
+	for label := range insp.vTypes {
 		if _, ok := m[label]; !ok {
 			switch label {
 			case "_start", "_end":

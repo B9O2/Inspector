@@ -48,7 +48,7 @@ func TestNewInspector(t *testing.T) {
 	})
 
 	insp.SetOrders("n0p3", String, EventType, JsonEvent, "_time")
-	//id := toki.Record(EventType(e))
+
 	insp.Print(EventType(e, Green), String("!!!", Blue))
 	insp.Print(String("hello"))
 	insp.Print(String(2, Yellow))

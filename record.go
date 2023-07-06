@@ -42,11 +42,14 @@ func (r Record) ToString(sep string) string {
 		if v.formatter != nil {
 			part = v.formatter(v.data)
 			for _, tag := range v.tags {
-				switch strings.SplitN(tag.Label(), ".", 2)[1] {
-				case "color":
+				switch tag.Data().(type) {
+				case colors.Color:
 					if c, ok := tag.Data().(colors.Color); ok {
 						color = c
 					}
+				case error:
+					color = colors.Red
+					part += fmt.Sprintf("{@%s error: %s}", tag.Label(), tag.Data().(error))
 				default:
 					continue
 				}

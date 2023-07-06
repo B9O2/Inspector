@@ -3,16 +3,17 @@ package Inspect
 import (
 	"errors"
 	"fmt"
+	"github.com/B9O2/Inspector/decorators"
 	"github.com/B9O2/NStruct/ScrollArray"
 	"time"
 )
 
-type VType func(value interface{}) *Value
+type VType func(interface{}, ...*decorators.Decorator) *Value
 
 type Inspector struct {
 	name        string
 	records     *ScrollArray.ScrollArray
-	vTypes      map[string]*TestingGroup
+	vTypes      map[string][]*decorators.Decorator
 	autoTypes   map[string]VType
 	autoTypeGen map[string]func() interface{}
 	rTypeOrders []string
@@ -34,9 +35,8 @@ func (insp *Inspector) NewAutoType(label string, generator func() interface{}, f
 	return err
 }
 
-func (insp *Inspector) newType(auto bool, label string, generator func() interface{}, formatter func(interface{}) string) (VType, error) {
-
-	typeFunc := func(value interface{}) *Value {
+func (insp *Inspector) newTypeFunc(label string, formatter func(interface{}) string) VType {
+	return func(value interface{}, decos ...*decorators.Decorator) *Value {
 		return &Value{
 			typeLabel: label,
 			formatter: func(i interface{}) (str string) {
@@ -48,9 +48,14 @@ func (insp *Inspector) newType(auto bool, label string, generator func() interfa
 				str = formatter(i)
 				return
 			},
-			data: value,
+			extraDecorators: decos,
+			data:            value,
 		}
 	}
+}
+
+func (insp *Inspector) newType(auto bool, label string, generator func() interface{}, formatter func(interface{}) string) (VType, error) {
+	typeFunc := insp.newTypeFunc(label, formatter)
 
 	if _, ok := insp.vTypes[label]; ok {
 		return nil, errors.New(fmt.Sprintf("[INSP::%s]: Type '%s' already exists.", insp.name, label))
@@ -113,18 +118,23 @@ func (insp *Inspector) SetOrders(vTypes ...interface{}) {
 			}
 		}
 	}
+	for label, _ := range insp.vTypes {
+		if _, ok := m[label]; !ok {
+			switch label {
+			case "_start", "_end":
+				continue
+			default:
+				m[label] = '_'
+				orders = append(orders, label)
+			}
+		}
+	}
 	insp.rTypeOrders = orders
 }
 
 func (insp *Inspector) SetAutoTypeFormatter(label string, formatter func(interface{}) string) error {
 	if _, ok := insp.autoTypes[label]; ok {
-		insp.autoTypes[label] = func(value interface{}) *Value {
-			return &Value{
-				typeLabel: label,
-				formatter: formatter,
-				data:      value,
-			}
-		}
+		insp.autoTypes[label] = insp.newTypeFunc(label, formatter)
 		return nil
 	} else {
 		return errors.New(fmt.Sprintf("[INSP::%s]: AutoType '%s' not exists.", insp.name, label))
@@ -134,6 +144,18 @@ func (insp *Inspector) SetAutoTypeFormatter(label string, formatter func(interfa
 func (insp *Inspector) initRecord(values []*Value) Record {
 	for label, generator := range insp.autoTypeGen {
 		values = append(values, insp.autoTypes[label](generator()))
+	}
+	for _, value := range values {
+		if decos, ok := insp.vTypes[value.typeLabel]; ok {
+			//类型装饰器与额外装饰器
+			for _, deco := range append(decos, value.extraDecorators...) {
+				value.tags = append(value.tags, deco.Decorate(value.data))
+			}
+		} else {
+			value.formatter = func(i interface{}) string {
+				return "{" + value.typeLabel + " error: type not be registered in this inspector '" + insp.name + "'}"
+			}
+		}
 	}
 	return insp.order(values)
 }
@@ -147,7 +169,7 @@ func (insp *Inspector) Print(values ...*Value) {
 	fmt.Print(record.ToString(insp.sep))
 }
 
-func (insp *Inspector) InspectAndRecord(values ...*Value) uint {
+func (insp *Inspector) PrintAndRecord(values ...*Value) uint {
 	record := insp.initRecord(values)
 	fmt.Print(record.ToString(insp.sep))
 	return insp.records.Append(record)
@@ -165,13 +187,25 @@ func (insp *Inspector) SetSeparator(sep string) {
 	insp.sep = sep
 }
 
+func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*decorators.Decorator) error {
+	if label, ok := insp.getLabel(vType); ok {
+		if _, ok := insp.vTypes[label]; ok {
+			insp.vTypes[label] = decos
+			return nil
+		} else {
+			return errors.New(fmt.Sprintf("[INSP::%s]: Type '%s' not exists.", insp.name, label))
+		}
+	}
+	return errors.New(fmt.Sprintf("[INSP::%s]: '%v' is not a VType.", insp.name, vType))
+}
+
 func NewInspector(name string, size uint) *Inspector {
 	insp := &Inspector{
 		name:        name,
 		records:     ScrollArray.NewScrollArray(size),
 		autoTypes:   map[string]VType{},
 		autoTypeGen: map[string]func() interface{}{},
-		vTypes:      map[string]*TestingGroup{},
+		vTypes:      map[string][]*decorators.Decorator{},
 		sep:         " ",
 	}
 
@@ -180,6 +214,14 @@ func NewInspector(name string, size uint) *Inspector {
 	}, func(v interface{}) string {
 		return v.(time.Time).Format("2006/01/02 15:04:05")
 	})
+
+	/*todo 当前文件
+	_, _ = insp.newType(true, "_file", func() interface{} {
+		return time.Now()
+	}, func(v interface{}) string {
+		return v.(time.Time).Format("2006/01/02 15:04:05")
+	})
+	*/
 
 	_, _ = insp.newType(true, "_start", func() interface{} {
 		return nil

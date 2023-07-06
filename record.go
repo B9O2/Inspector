@@ -2,13 +2,17 @@ package Inspect
 
 import (
 	"fmt"
+	"github.com/B9O2/Inspector/decorators"
+	colors "github.com/gookit/color"
 	"strings"
 )
 
 type Value struct {
-	typeLabel string
-	formatter func(interface{}) string
-	data      interface{}
+	typeLabel       string
+	formatter       func(interface{}) string
+	extraDecorators []*decorators.Decorator
+	tags            []decorators.Tag
+	data            interface{}
 }
 
 func (v Value) Label() string {
@@ -22,31 +26,36 @@ func (v Value) Data() interface{} {
 type Record []*Value
 
 func (r Record) String() string {
-	var parts []string
-	for _, v := range r {
-		if v == nil {
-			continue
-		}
-		if v.formatter != nil {
-			parts = append(parts, v.formatter(v.data))
-		} else {
-			parts = append(parts, fmt.Sprintf("%v", v.data))
-		}
-	}
-	return strings.Join(parts, " ")
+	return r.ToString(" ")
 }
 
 func (r Record) ToString(sep string) string {
+	var color colors.Color
+	var part string
 	var parts []string
 	for _, v := range r {
 		if v == nil {
 			continue
 		}
+		part = ""
+		color = 0
 		if v.formatter != nil {
-			parts = append(parts, v.formatter(v.data))
+			part = v.formatter(v.data)
+			for _, tag := range v.tags {
+				switch strings.SplitN(tag.Label(), ".", 2)[1] {
+				case "color":
+					if c, ok := tag.Data().(colors.Color); ok {
+						color = c
+					}
+				default:
+					continue
+				}
+			}
 		} else {
-			parts = append(parts, fmt.Sprintf("%v", v.data))
+			part = fmt.Sprintf("{%s error: no fomatter. value: %v}", v.typeLabel, v.data)
+			color = colors.Red
 		}
+		parts = append(parts, color.Text(part))
 	}
 	return strings.Join(parts, sep)
 }

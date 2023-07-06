@@ -3,6 +3,7 @@ package Inspect
 import (
 	"encoding/json"
 	"fmt"
+	. "github.com/B9O2/Inspector/decorators"
 	"testing"
 	"time"
 )
@@ -21,15 +22,15 @@ func (e Event) ToString() string {
 func TestNewInspector(t *testing.T) {
 	e := Event{
 		Id:     1,
-		Name:   "危险！",
+		Name:   "Danger！",
 		threat: 10,
 		eTime:  time.Now(),
 	}
-	toki := NewInspector("TOKI", 99)
-	EventType, _ := toki.NewType("event", func(i interface{}) string {
+	insp := NewInspector("TEST", 99)
+	EventType, _ := insp.NewType("event", func(i interface{}) string {
 		return i.(Event).ToString()
 	})
-	JsonEvent, _ := toki.NewType("json", func(i interface{}) string {
+	JsonEvent, _ := insp.NewType("json", func(i interface{}) string {
 		marshal, err := json.MarshalIndent(i.(Event), "", "  ")
 		if err != nil {
 			return err.Error()
@@ -37,19 +38,19 @@ func TestNewInspector(t *testing.T) {
 			return string(marshal) + "\n"
 		}
 	})
-	String, _ := toki.NewType("str", func(i interface{}) string {
+	String, _ := insp.NewType("str", func(i interface{}) string {
 		return i.(string)
 	})
-	toki.NewAutoType("n0p3", func() interface{} {
+	insp.NewAutoType("n0p3", func() interface{} {
 		return "ad6fe75dfabc"
 	}, func(i interface{}) string {
 		return i.(string)
 	})
 
-	toki.SetOrders("n0p3", String, EventType, JsonEvent, "_time")
+	insp.SetOrders("n0p3", String, EventType, JsonEvent, "_time")
 	//id := toki.Record(EventType(e))
-	toki.Record(EventType(e))
-	toki.Print(String("hello"))
-	toki.Print(String(2))
+	insp.Print(EventType(e, Green), String("!!!", Blue))
+	insp.Print(String("hello"))
+	insp.Print(String(2, Yellow))
 
 }

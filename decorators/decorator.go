@@ -13,6 +13,13 @@ func (t Tag) Data() interface{} {
 	return t.data
 }
 
+func NewTag(label string, data interface{}) Tag {
+	return Tag{
+		label: label,
+		data:  data,
+	}
+}
+
 // Decorator 装饰器可以对值（Value）进行修饰
 type Decorator struct {
 	label string
@@ -25,7 +32,7 @@ func (d Decorator) Decorate(i interface{}) (ret Tag) {
 	defer func() {
 		if r := recover(); r != nil {
 			ret = Tag{
-				label: d.label,
+				label: d.label + ".error",
 				data:  r.(error),
 			}
 		}

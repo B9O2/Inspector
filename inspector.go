@@ -20,18 +20,18 @@ type Inspector struct {
 	sep         string
 }
 
-func (insp *Inspector) NewType(label string, formatter func(interface{}) string) (VType, error) {
+func (insp *Inspector) NewType(label string, formatter func(interface{}) string, decos ...*decorators.Decorator) (VType, error) {
 	if len(label) > 0 && label[0] == '_' {
 		return nil, errors.New(fmt.Sprintf("[INSP::%s]: Label cannot start with '_'.", insp.name))
 	}
-	return insp.newType(false, label, nil, formatter)
+	return insp.newType(false, label, nil, formatter, decos...)
 }
 
-func (insp *Inspector) NewAutoType(label string, generator func() interface{}, formatter func(interface{}) string) error {
+func (insp *Inspector) NewAutoType(label string, generator func() interface{}, formatter func(interface{}) string, decos ...*decorators.Decorator) error {
 	if len(label) > 0 && label[0] == '_' {
 		return errors.New(fmt.Sprintf("[INSP::%s]: Label cannot start with '_'.", insp.name))
 	}
-	_, err := insp.newType(true, label, generator, formatter)
+	_, err := insp.newType(true, label, generator, formatter, decos...)
 	return err
 }
 
@@ -54,13 +54,13 @@ func (insp *Inspector) newTypeFunc(label string, formatter func(interface{}) str
 	}
 }
 
-func (insp *Inspector) newType(auto bool, label string, generator func() interface{}, formatter func(interface{}) string) (VType, error) {
+func (insp *Inspector) newType(auto bool, label string, generator func() interface{}, formatter func(interface{}) string, decos ...*decorators.Decorator) (VType, error) {
 	typeFunc := insp.newTypeFunc(label, formatter)
 
 	if _, ok := insp.vTypes[label]; ok {
 		return nil, errors.New(fmt.Sprintf("[INSP::%s]: Type '%s' already exists.", insp.name, label))
 	} else {
-		insp.vTypes[label] = nil
+		insp.vTypes[label] = decos
 		insp.rTypeOrders = append(insp.rTypeOrders, label)
 	}
 
@@ -74,6 +74,9 @@ func (insp *Inspector) newType(auto bool, label string, generator func() interfa
 }
 
 func (insp *Inspector) getLabel(vType interface{}) (string, bool) {
+	if vType == nil {
+		return "", false
+	}
 	label := ""
 	switch vType.(type) {
 	case VType:
@@ -97,7 +100,11 @@ func (insp *Inspector) order(record Record) Record {
 
 	retRecord := Record{}
 	for _, label := range orders {
-		retRecord = append(retRecord, values[label]...)
+		if _, ok := insp.autoTypes[label]; ok {
+			retRecord = append(retRecord, values[label][0])
+		} else {
+			retRecord = append(retRecord, values[label]...)
+		}
 	}
 	return retRecord
 }
@@ -141,10 +148,12 @@ func (insp *Inspector) SetAutoTypeFormatter(label string, formatter func(interfa
 	}
 }
 
+func (insp *Inspector) GetAutoType(label string) (VType, bool) {
+	vType, ok := insp.autoTypes[label]
+	return vType, ok
+}
+
 func (insp *Inspector) initRecord(values []*Value) Record {
-	for label, generator := range insp.autoTypeGen {
-		values = append(values, insp.autoTypes[label](generator()))
-	}
 	for _, value := range values {
 		if decos, ok := insp.vTypes[value.typeLabel]; ok {
 			//类型装饰器与额外装饰器
@@ -156,6 +165,9 @@ func (insp *Inspector) initRecord(values []*Value) Record {
 				return "{" + value.typeLabel + " error: type not be registered in this inspector '" + insp.name + "'}"
 			}
 		}
+	}
+	for label, generator := range insp.autoTypeGen {
+		values = append(values, insp.autoTypes[label](generator()))
 	}
 	return insp.order(values)
 }
@@ -224,15 +236,15 @@ func NewInspector(name string, size uint) *Inspector {
 	*/
 
 	_, _ = insp.newType(true, "_start", func() interface{} {
-		return nil
+		return " "
 	}, func(v interface{}) string {
-		return ">"
+		return v.(string)
 	})
 
 	_, _ = insp.newType(true, "_end", func() interface{} {
-		return nil
-	}, func(v interface{}) string {
 		return "\n"
+	}, func(v interface{}) string {
+		return v.(string)
 	})
 
 	insp.SetOrders("_time") //初始化排序

@@ -68,6 +68,18 @@ func (r Record) decorate(text string, tags []decorators.Tag) (string, colors.Col
 			} else {
 				appendErrorTag(tag.Label(), "unknown testing type '"+reflect.TypeOf(data).String()+"'")
 			}
+		case "prefix":
+			if res, ok := data.(string); ok {
+				text = res + text
+			} else {
+				appendErrorTag(tag.Label(), "unknown prefix type '"+reflect.TypeOf(data).String()+"'")
+			}
+		case "suffix":
+			if res, ok := data.(string); ok {
+				text += res
+			} else {
+				appendErrorTag(tag.Label(), "unknown suffix type '"+reflect.TypeOf(data).String()+"'")
+			}
 		case "error":
 			color = colors.Red
 			if err, ok := data.(error); ok {
@@ -133,6 +145,7 @@ func (r Record) ToString(sep string) string {
 	if length >= 3 {
 		text = parts[0] + strings.Join(parts[1:length-1], sep) + parts[length-1]
 	} else {
+		println("222")
 		text = strings.Join(parts, sep)
 	}
 	//strings.Join(valueReports, "\n")

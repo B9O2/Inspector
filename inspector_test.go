@@ -1,10 +1,7 @@
 package Inspect
 
 import (
-	"encoding/json"
 	"fmt"
-	. "github.com/B9O2/Inspector/decorators"
-	colors "github.com/gookit/color"
 	"testing"
 	"time"
 )
@@ -31,39 +28,13 @@ func TestNewInspector(t *testing.T) {
 	EventType, _ := insp.NewType("event", func(i interface{}) string {
 		return i.(Event).ToString()
 	})
-	JsonEvent, _ := insp.NewType("json", func(i interface{}) string {
-		marshal, err := json.MarshalIndent(i.(Event), "", "  ")
-		if err != nil {
-			return err.Error()
-		} else {
-			return string(marshal) + "\n"
-		}
+	FileName, _ := insp.NewType("file", func(i interface{}) string {
+		return "<" + i.(string) + ">"
 	})
-	String, _ := insp.NewType("str", func(i interface{}) string {
-		return i.(string)
-	}, Red)
-	insp.NewAutoType("n0p3", func() interface{} {
-		return "ad6fe75dfabc"
-	}, func(i interface{}) string {
-		return i.(string)
+	UserName, _ := insp.NewType("user", func(i interface{}) string {
+		return "\"" + i.(string) + "\""
 	})
 
-	MengdaColor := NewDecoration("mengda.color", func(i interface{}) interface{} {
-		return colors.RGB(22, 45, 45)
-	})
-	insp.SetOrders("n0p3", String, EventType, JsonEvent, "_time")
-
-	/*
-		HasErr := Testing("是否包含错误", func(i interface{}) (bool, error) {
-			return strings.Contains(i.(string), "err"), nil
-		})
-		HasOK := Testing("是否包含OK", func(i interface{}) (bool, error) {
-			return strings.Contains(i.(string), "ok"), nil
-		})
-	*/
-	Start, _ := insp.GetAutoType("_start")
-	//insp.Print(EventType(e, Green), String("!!err!!!!ok!!!!", MengdaColor, HasErr, HasOK))
-	insp.Print(Start(">", MengdaColor), String("hello"))
-	insp.Print(String(2, Yellow), EventType(e, Green))
+	insp.Print(FileName("test.txt"), EventType(e), UserName("root"))
 
 }

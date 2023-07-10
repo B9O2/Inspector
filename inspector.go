@@ -10,6 +10,7 @@ import (
 
 type VType func(interface{}, ...*decorators.Decorator) *Value
 
+// Inspector 检查器是一切输出、记录、变量检查的核心。要实例化一个检查器您需要调用NewInspector()。
 type Inspector struct {
 	name        string
 	records     *ScrollArray.ScrollArray
@@ -20,6 +21,7 @@ type Inspector struct {
 	sep         string
 }
 
+// NewType 创建类型方法可以声明一种新的类型描述函数(VType)，类型描述函数用于在输出、记录时标记值的类型。 您总是应该在有新类型的值时调用此方法。
 func (insp *Inspector) NewType(label string, formatter func(interface{}) string, decos ...*decorators.Decorator) (VType, error) {
 	if len(label) > 0 && label[0] == '_' {
 		return nil, errors.New(fmt.Sprintf("[INSP::%s]: Label cannot start with '_'.", insp.name))
@@ -27,6 +29,7 @@ func (insp *Inspector) NewType(label string, formatter func(interface{}) string,
 	return insp.newType(false, label, nil, formatter, decos...)
 }
 
+// NewAutoType 创建自动类型方法是特殊的类型描述函数(VType)声明方法。此类型声明时需要实现generator()，此函数会在输出、记录时自动调用并将返回值提供给formatter()
 func (insp *Inspector) NewAutoType(label string, generator func() interface{}, formatter func(interface{}) string, decos ...*decorators.Decorator) error {
 	if len(label) > 0 && label[0] == '_' {
 		return errors.New(fmt.Sprintf("[INSP::%s]: Label cannot start with '_'.", insp.name))
@@ -109,6 +112,7 @@ func (insp *Inspector) order(record Record) Record {
 	return retRecord
 }
 
+// SetOrders 设定值顺序。仅此方法可以设定顺序，值顺序不会受调用Print()、Record()等方法时传参顺序影响
 func (insp *Inspector) SetOrders(vTypes ...interface{}) {
 	var orders []string
 	m := map[string]byte{}
@@ -139,6 +143,7 @@ func (insp *Inspector) SetOrders(vTypes ...interface{}) {
 	insp.rTypeOrders = orders
 }
 
+// SetAutoTypeFormatter 设定自动类型的格式化方法。此方法多用于设定内置自动类型。
 func (insp *Inspector) SetAutoTypeFormatter(label string, formatter func(interface{}) string) error {
 	if _, ok := insp.autoTypes[label]; ok {
 		insp.autoTypes[label] = insp.newTypeFunc(label, formatter)
@@ -148,6 +153,7 @@ func (insp *Inspector) SetAutoTypeFormatter(label string, formatter func(interfa
 	}
 }
 
+// GetAutoType 用于获取自动类型描述函数的方法。如希望主动提供自动类型的值需要调用此方法获得类型描述函数(VType)
 func (insp *Inspector) GetAutoType(label string) (VType, bool) {
 	vType, ok := insp.autoTypes[label]
 	return vType, ok
@@ -172,21 +178,25 @@ func (insp *Inspector) initRecord(values []*Value) Record {
 	return insp.order(values)
 }
 
+// Record 记录参数并返回此记录的id。id永不重复但会在超出长度时清理掉过旧的记录。
 func (insp *Inspector) Record(values ...*Value) uint {
 	return insp.records.Append(insp.initRecord(values))
 }
 
+// Print 打印值。此方法仅打印参数，不储存参数。
 func (insp *Inspector) Print(values ...*Value) {
 	record := insp.initRecord(values)
 	fmt.Print(record.ToString(insp.sep))
 }
 
+// PrintAndRecord 此方法既打印参数又储存参数。
 func (insp *Inspector) PrintAndRecord(values ...*Value) uint {
 	record := insp.initRecord(values)
 	fmt.Print(record.ToString(insp.sep))
 	return insp.records.Append(record)
 }
 
+// FetchRecord 取回获得id对应的记录。如果id对应的结果不存在或已被清除则返回nil
 func (insp *Inspector) FetchRecord(id uint) Record {
 	if r, ok := insp.records.LoadWithEid(id); ok {
 		return r.(Record)
@@ -195,10 +205,12 @@ func (insp *Inspector) FetchRecord(id uint) Record {
 	}
 }
 
+// SetSeparator 设置打印时各参数间的分隔符。特殊的"_start"与"_end"与其他值之间没有分隔符。
 func (insp *Inspector) SetSeparator(sep string) {
 	insp.sep = sep
 }
 
+// SetTypeDecorations 设置类型装饰器。设定后所有被此类型描述的值都将具有这些装饰器。
 func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*decorators.Decorator) error {
 	if label, ok := insp.getLabel(vType); ok {
 		if _, ok := insp.vTypes[label]; ok {
@@ -211,6 +223,7 @@ func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*decorator
 	return errors.New(fmt.Sprintf("[INSP::%s]: '%v' is not a VType.", insp.name, vType))
 }
 
+// NewInspector 实例化一个新的检查器，您需要为它命名并指定最大滚动储存的数目。
 func NewInspector(name string, size uint) *Inspector {
 	insp := &Inspector{
 		name:        name,
@@ -236,7 +249,7 @@ func NewInspector(name string, size uint) *Inspector {
 	*/
 
 	_, _ = insp.newType(true, "_start", func() interface{} {
-		return " "
+		return ""
 	}, func(v interface{}) string {
 		return v.(string)
 	})

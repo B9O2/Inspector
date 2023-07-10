@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/B9O2/Inspector/decorators"
 	"github.com/B9O2/NStruct/ScrollArray"
+	"runtime"
 	"time"
 )
 
@@ -161,6 +162,9 @@ func (insp *Inspector) GetAutoType(label string) (VType, bool) {
 }
 
 func (insp *Inspector) initRecord(values []*Value) Record {
+	for label, generator := range insp.autoTypeGen {
+		values = append(values, insp.autoTypes[label](generator()))
+	}
 	for _, value := range values {
 		if decos, ok := insp.vTypes[value.typeLabel]; ok {
 			//类型装饰器与额外装饰器
@@ -172,9 +176,6 @@ func (insp *Inspector) initRecord(values []*Value) Record {
 				return "{" + value.typeLabel + " error: type not be registered in this inspector '" + insp.name + "'}"
 			}
 		}
-	}
-	for label, generator := range insp.autoTypeGen {
-		values = append(values, insp.autoTypes[label](generator()))
 	}
 	return insp.order(values)
 }
@@ -245,20 +246,6 @@ func NewInspector(name string, size uint) *Inspector {
 		sep:         " ",
 	}
 
-	_, _ = insp.newType(true, "_time", func() interface{} {
-		return time.Now()
-	}, func(v interface{}) string {
-		return v.(time.Time).Format("2006/01/02 15:04:05")
-	})
-
-	/*todo 当前文件
-	_, _ = insp.newType(true, "_file", func() interface{} {
-		return time.Now()
-	}, func(v interface{}) string {
-		return v.(time.Time).Format("2006/01/02 15:04:05")
-	})
-	*/
-
 	_, _ = insp.newType(true, "_start", func() interface{} {
 		return ""
 	}, func(v interface{}) string {
@@ -270,6 +257,29 @@ func NewInspector(name string, size uint) *Inspector {
 	}, func(v interface{}) string {
 		return v.(string)
 	})
+
+	_, _ = insp.newType(true, "_time", func() interface{} {
+		return time.Now()
+	}, func(v interface{}) string {
+		return v.(time.Time).Format("2006/01/02 15:04:05")
+	})
+
+	_, _ = insp.newType(true, "_func", func() interface{} {
+		pc := make([]uintptr, 1)
+		runtime.Callers(4, pc)
+		f := runtime.FuncForPC(pc[0])
+		return f.Name()
+	}, func(v interface{}) string {
+		return v.(string)
+	})
+
+	/*todo 当前文件
+	_, _ = insp.newType(true, "_file", func() interface{} {
+		return time.Now()
+	}, func(v interface{}) string {
+		return v.(time.Time).Format("2006/01/02 15:04:05")
+	})
+	*/
 
 	insp.SetOrders("_time") //初始化排序
 

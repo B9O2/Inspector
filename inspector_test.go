@@ -42,6 +42,9 @@ func TestNewInspector(t *testing.T) {
 	FlagEnd := decorators.NewDecoration("flag.suffix", func(i interface{}) interface{} {
 		return "}end"
 	})
-	insp.Print(FileName("test.txt"), EventType(e, FlagStart, FlagEnd, decorators.Red), UserName("root"))
+
+	insp.SetTypeDecorations("_func", decorators.Invisible)
+	insp.SetVisible(false)
+	insp.Print(FileName("test.adwtxt"), EventType(e, FlagStart, FlagEnd, decorators.Invisible), UserName("root"))
 
 }

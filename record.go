@@ -144,17 +144,12 @@ func (r Record) ToString(sep string) string {
 			part = fmt.Sprintf("{%s error: no fomatter. value: %v}", v.typeLabel, v.data)
 			color = colors.Red
 		}
-		parts = append(parts, color.Text(part))
-	}
-	text := ""
-	length := len(parts)
-	if length >= 3 {
-		text = parts[0] + strings.Join(parts[1:length-1], sep) + parts[length-1]
-	} else {
-		text = strings.Join(parts, sep)
+		if len(part) > 0 {
+			parts = append(parts, color.Text(part))
+		}
 	}
 	//strings.Join(valueReports, "\n")
-	return text
+	return strings.Join(parts, sep)
 }
 
 func (r Record) StringWithVType(sep string) string {

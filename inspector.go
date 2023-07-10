@@ -18,6 +18,7 @@ type Inspector struct {
 	autoTypes   map[string]VType
 	autoTypeGen map[string]func() interface{}
 	rTypeOrders []string
+	visible     bool
 	sep         string
 }
 
@@ -185,14 +186,18 @@ func (insp *Inspector) Record(values ...*Value) uint {
 
 // Print 打印值。此方法仅打印参数，不储存参数。
 func (insp *Inspector) Print(values ...*Value) {
-	record := insp.initRecord(values)
-	fmt.Print(record.ToString(insp.sep))
+	if insp.visible {
+		record := insp.initRecord(values)
+		fmt.Print(record.ToString(insp.sep))
+	}
 }
 
 // PrintAndRecord 此方法既打印参数又储存参数。
 func (insp *Inspector) PrintAndRecord(values ...*Value) uint {
 	record := insp.initRecord(values)
-	fmt.Print(record.ToString(insp.sep))
+	if insp.visible {
+		fmt.Print(record.ToString(insp.sep))
+	}
 	return insp.records.Append(record)
 }
 
@@ -223,6 +228,11 @@ func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*decorator
 	return errors.New(fmt.Sprintf("[INSP::%s]: '%v' is not a VType.", insp.name, vType))
 }
 
+// SetVisible 设置输出可见性，如果false则Print()方法不做任何事
+func (insp *Inspector) SetVisible(visible bool) {
+	insp.visible = visible
+}
+
 // NewInspector 实例化一个新的检查器，您需要为它命名并指定最大滚动储存的数目。
 func NewInspector(name string, size uint) *Inspector {
 	insp := &Inspector{
@@ -231,6 +241,7 @@ func NewInspector(name string, size uint) *Inspector {
 		autoTypes:   map[string]VType{},
 		autoTypeGen: map[string]func() interface{}{},
 		vTypes:      map[string][]*decorators.Decorator{},
+		visible:     true,
 		sep:         " ",
 	}
 

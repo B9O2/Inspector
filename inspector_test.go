@@ -2,6 +2,7 @@ package Inspect
 
 import (
 	"fmt"
+	"github.com/B9O2/Inspector/decorators"
 	"testing"
 	"time"
 )
@@ -35,6 +36,12 @@ func TestNewInspector(t *testing.T) {
 		return "\"" + i.(string) + "\""
 	})
 
-	insp.Print(FileName("test.txt"), EventType(e), UserName("root"))
+	FlagStart := decorators.NewDecoration("flag.prefix", func(i interface{}) interface{} {
+		return "flag{"
+	})
+	FlagEnd := decorators.NewDecoration("flag.suffix", func(i interface{}) interface{} {
+		return "}end"
+	})
+	insp.Print(FileName("test.txt"), EventType(e, FlagStart, FlagEnd, decorators.Red), UserName("root"))
 
 }

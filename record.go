@@ -144,8 +144,13 @@ func (r Record) ToString(sep string) string {
 			part = fmt.Sprintf("{%s error: no fomatter. value: %v}", v.typeLabel, v.data)
 			color = colors.Red
 		}
+
 		if len(part) > 0 {
-			parts = append(parts, color.Text(part))
+			var lines []string
+			for _, line := range strings.Split(part, "\n") {
+				lines = append(lines, color.Text(line))
+			}
+			parts = append(parts, strings.Join(lines, "\n"))
 		}
 	}
 	//strings.Join(valueReports, "\n")

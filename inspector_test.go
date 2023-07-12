@@ -43,8 +43,8 @@ func TestNewInspector(t *testing.T) {
 		return "}end"
 	})
 
-	insp.SetTypeDecorations("_func", decorators.Invisible)
-	insp.SetVisible(false)
-	insp.Print(FileName("test.adwtxt"), EventType(e, FlagStart, FlagEnd, decorators.Invisible), UserName("root"))
+	insp.SetTypeDecorations("_func")
+	insp.SetVisible(true)
+	insp.Print(FileName("test.ad\nwtxt", decorators.Green), EventType(e, FlagStart, FlagEnd, decorators.Invisible), UserName("root"))
 
 }

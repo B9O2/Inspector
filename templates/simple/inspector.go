@@ -1,16 +1,17 @@
 // Package simple
-// 这是一个简单的检查器样板间，您可以直接导入使用或基于此自定义符合您项目的检查器。
-// 同
+// 这是一个简单的检查器样板，您可以直接导入使用或基于此自定义符合您项目的检查器。
 // /*
 package simple
 
 import (
-	Inspect "github.com/B9O2/Inspector"
+	"bytes"
+	"encoding/json"
 	"github.com/B9O2/Inspector/decorators"
+	"github.com/B9O2/Inspector/inspect"
 	colors "github.com/gookit/color"
 )
 
-var Insp = Inspect.NewInspector("simple", 10000)
+var Insp = inspect.NewInspector("simple", 10000)
 var (
 	// Text 普通本文
 	Text, _ = Insp.NewType("text", func(i interface{}) string {
@@ -40,7 +41,7 @@ var (
 			return "[UNKNOWN]"
 		}
 		//根据不同数字装饰不同颜色
-	}, decorators.NewDecoration("level.color", func(i interface{}) interface{} {
+	}, inspect.NewDecoration("level.color", func(i interface{}) interface{} {
 		switch i.(int) {
 		case 0:
 			return colors.White
@@ -52,6 +53,25 @@ var (
 			return colors.Magenta
 		}
 	}))
+
+	// Json 序列化对象并生成美化后的Json字符串
+	Json, _ = Insp.NewType("json", func(i interface{}) string {
+		var out bytes.Buffer
+		if obj, ok := i.(string); ok {
+			err := json.Indent(&out, []byte(obj), "", "  ")
+			if err != nil {
+				return err.Error()
+			}
+			return "\n" + out.String() + "\n"
+		} else {
+			marshal, err := json.MarshalIndent(i, "", "  ")
+			if err != nil {
+				return err.Error()
+			}
+			return "\n" + string(marshal) + "\n"
+		}
+
+	}, decorators.Cyan)
 )
 
 var (

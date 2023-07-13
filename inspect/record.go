@@ -1,9 +1,8 @@
-package Inspect
+package inspect
 
 import (
 	"errors"
 	"fmt"
-	"github.com/B9O2/Inspector/decorators"
 	colors "github.com/gookit/color"
 	"reflect"
 	"strings"
@@ -12,13 +11,17 @@ import (
 type Value struct {
 	typeLabel       string
 	formatter       func(interface{}) string
-	extraDecorators []*decorators.Decorator
-	tags            []decorators.Tag
+	extraDecorators []*Decorator
+	tags            []Tag
 	data            interface{}
 }
 
 func (v Value) Label() string {
 	return v.typeLabel
+}
+
+func (v Value) Tags() []Tag {
+	return v.tags
 }
 
 func (v Value) Data() interface{} {
@@ -31,28 +34,38 @@ func (r Record) String() string {
 	return r.ToString(" ")
 }
 
-func (r Record) decorate(text string, tags []decorators.Tag) (string, colors.Color, []decorators.TestingReport) {
+func (r Record) CalCondition(conditions ...Condition) bool {
+	if len(conditions) <= 0 {
+		return true
+	}
+	for _, v := range r {
+		for _, condition := range conditions {
+			if condition(v) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r Record) decorate(text string, tags []Tag) (string, colors.Color, []TestingReport) {
 	var color colors.Color
-	var patchTags []decorators.Tag
-	var testingResults []decorators.TestingReport
+	var patchTags []Tag
+	var testingResults []TestingReport
 
 	appendErrorTag := func(label string, errText string) {
-		patchTags = append(patchTags, decorators.NewTag(
-			label+".error",
+		patchTags = append(patchTags, NewTag(
+			label,
+			"error",
 			errors.New(errText)))
 	}
 
 	for _, tag := range tags {
-		suffix := ""
-		tagParts := strings.Split(tag.Label(), ".")
-		if len(tagParts) > 1 {
-			suffix = tagParts[len(tagParts)-1]
-		}
 		data := tag.Data()
 		if data == nil {
 			continue
 		}
-		switch suffix {
+		switch tag.tagType {
 		case "color":
 			switch data.(type) {
 			case colors.Color:
@@ -63,7 +76,7 @@ func (r Record) decorate(text string, tags []decorators.Tag) (string, colors.Col
 				appendErrorTag(tag.Label(), "unknown color type '"+reflect.TypeOf(data).String()+"'")
 			}
 		case "testing":
-			if res, ok := data.(decorators.TestingReport); ok {
+			if res, ok := data.(TestingReport); ok {
 				testingResults = append(testingResults, res)
 			} else {
 				appendErrorTag(tag.Label(), "unknown testing type '"+reflect.TypeOf(data).String()+"'")
@@ -104,7 +117,7 @@ func (r Record) decorate(text string, tags []decorators.Tag) (string, colors.Col
 	}
 }
 
-func (r Record) genTestingReport(label string, reports []decorators.TestingReport) string {
+func (r Record) genTestingReport(label string, reports []TestingReport) string {
 	finalReportFmt := "\\___[%s] Testing Report___\n    %s\n_____________________(%d/%d)\n\n"
 	totalSuccess := 0
 	var parts []string
@@ -125,36 +138,41 @@ func (r Record) genTestingReport(label string, reports []decorators.TestingRepor
 
 func (r Record) ToString(sep string) string {
 	var color colors.Color
-	var reports []decorators.TestingReport
-	var part string
+	var reports []TestingReport
+	var valueStr string
 	var parts, valueReports []string
 	for _, v := range r {
 		if v == nil {
 			continue
 		}
-		part = ""
+		valueStr = ""
 		color = 0
 		if v.formatter != nil {
-			part = v.formatter(v.data)
-			part, color, reports = r.decorate(part, v.tags)
+			valueStr = v.formatter(v.data)
+			valueStr, color, reports = r.decorate(valueStr, v.tags)
 			if len(reports) > 0 {
 				valueReports = append(valueReports, r.genTestingReport(v.Label(), reports))
 			}
 		} else {
-			part = fmt.Sprintf("{%s error: no fomatter. value: %v}", v.typeLabel, v.data)
+			valueStr = fmt.Sprintf("{%s error: no fomatter. value: %v}", v.typeLabel, v.data)
 			color = colors.Red
 		}
 
-		if len(part) > 0 {
+		if len(valueStr) > 0 || v.Label() == "_end" {
 			var lines []string
-			for _, line := range strings.Split(part, "\n") {
+			for _, line := range strings.Split(valueStr, "\n") {
 				lines = append(lines, color.Text(line))
 			}
 			parts = append(parts, strings.Join(lines, "\n"))
 		}
 	}
 	//strings.Join(valueReports, "\n")
-	return strings.Join(parts, sep)
+	length := len(parts)
+	if length > 0 {
+		return strings.Join(parts[:length-1], sep) + parts[length-1]
+	} else {
+		return ""
+	}
 }
 
 func (r Record) StringWithVType(sep string) string {

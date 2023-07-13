@@ -1,30 +1,30 @@
-package Inspect
+package inspect
 
 import (
 	"errors"
 	"fmt"
-	"github.com/B9O2/Inspector/decorators"
 	"github.com/B9O2/NStruct/ScrollArray"
 	"runtime"
 	"time"
 )
 
-type VType func(interface{}, ...*decorators.Decorator) *Value
+type VType func(interface{}, ...*Decorator) *Value
 
 // Inspector 检查器是一切输出、记录、变量检查的核心。要实例化一个检查器您需要调用NewInspector()。
 type Inspector struct {
-	name        string
-	records     *ScrollArray.ScrollArray
-	vTypes      map[string][]*decorators.Decorator
-	autoTypes   map[string]VType
-	autoTypeGen map[string]func() interface{}
-	rTypeOrders []string
-	visible     bool
-	sep         string
+	name              string
+	records           *ScrollArray.ScrollArray
+	vTypes            map[string][]*Decorator
+	autoTypes         map[string]VType
+	autoTypeGen       map[string]func() interface{}
+	rTypeOrders       []string
+	visibleConditions []Condition
+	visible           bool
+	sep               string
 }
 
 // NewType 创建类型方法可以声明一种新的类型描述函数(VType)，类型描述函数用于在输出、记录时标记值的类型。 您总是应该在有新类型的值时调用此方法。
-func (insp *Inspector) NewType(label string, formatter func(interface{}) string, decos ...*decorators.Decorator) (VType, error) {
+func (insp *Inspector) NewType(label string, formatter func(interface{}) string, decos ...*Decorator) (VType, error) {
 	if len(label) > 0 && label[0] == '_' {
 		return nil, errors.New(fmt.Sprintf("[INSP::%s]: Label cannot start with '_'.", insp.name))
 	}
@@ -32,7 +32,7 @@ func (insp *Inspector) NewType(label string, formatter func(interface{}) string,
 }
 
 // NewAutoType 创建自动类型方法是特殊的类型描述函数(VType)声明方法。此类型声明时需要实现generator()，此函数会在输出、记录时自动调用并将返回值提供给formatter()
-func (insp *Inspector) NewAutoType(label string, generator func() interface{}, formatter func(interface{}) string, decos ...*decorators.Decorator) error {
+func (insp *Inspector) NewAutoType(label string, generator func() interface{}, formatter func(interface{}) string, decos ...*Decorator) error {
 	if len(label) > 0 && label[0] == '_' {
 		return errors.New(fmt.Sprintf("[INSP::%s]: Label cannot start with '_'.", insp.name))
 	}
@@ -40,8 +40,23 @@ func (insp *Inspector) NewAutoType(label string, generator func() interface{}, f
 	return err
 }
 
+/*
+// Inherit 继承其他检查器的类型
+func (insp *Inspector) Inherit(inspectors ...*Inspector) error {
+	for _,insp1:=range inspectors{
+		for label,decos:=range insp1.vTypes{
+			if gen,ok:=insp1.autoTypeGen[label];ok{
+				insp.newType(true,label,gen,insp1.,)
+			}
+
+		}
+	}
+	return err
+}
+*/
+
 func (insp *Inspector) newTypeFunc(label string, formatter func(interface{}) string) VType {
-	return func(value interface{}, decos ...*decorators.Decorator) *Value {
+	return func(value interface{}, decos ...*Decorator) *Value {
 		return &Value{
 			typeLabel: label,
 			formatter: func(i interface{}) (str string) {
@@ -59,7 +74,7 @@ func (insp *Inspector) newTypeFunc(label string, formatter func(interface{}) str
 	}
 }
 
-func (insp *Inspector) newType(auto bool, label string, generator func() interface{}, formatter func(interface{}) string, decos ...*decorators.Decorator) (VType, error) {
+func (insp *Inspector) newType(auto bool, label string, generator func() interface{}, formatter func(interface{}) string, decos ...*Decorator) (VType, error) {
 	typeFunc := insp.newTypeFunc(label, formatter)
 
 	if _, ok := insp.vTypes[label]; ok {
@@ -106,7 +121,9 @@ func (insp *Inspector) order(record Record) Record {
 	retRecord := Record{}
 	for _, label := range orders {
 		if _, ok := insp.autoTypes[label]; ok {
-			retRecord = append(retRecord, values[label][0])
+			if len(values[label]) > 0 {
+				retRecord = append(retRecord, values[label][0])
+			}
 		} else {
 			retRecord = append(retRecord, values[label]...)
 		}
@@ -161,9 +178,11 @@ func (insp *Inspector) GetAutoType(label string) (VType, bool) {
 	return vType, ok
 }
 
-func (insp *Inspector) initRecord(values []*Value) Record {
-	for label, generator := range insp.autoTypeGen {
-		values = append(values, insp.autoTypes[label](generator()))
+func (insp *Inspector) initRecord(values []*Value, auto bool) Record {
+	if auto {
+		for label, generator := range insp.autoTypeGen {
+			values = append(values, insp.autoTypes[label](generator()))
+		}
 	}
 	for _, value := range values {
 		if decos, ok := insp.vTypes[value.typeLabel]; ok {
@@ -180,26 +199,38 @@ func (insp *Inspector) initRecord(values []*Value) Record {
 	return insp.order(values)
 }
 
-// Record 记录参数并返回此记录的id。id永不重复但会在超出长度时清理掉过旧的记录。
+// Record 记录参数并返回此记录的id。id永不重复但会在超出长度时清理掉过旧的记录
 func (insp *Inspector) Record(values ...*Value) uint {
-	return insp.records.Append(insp.initRecord(values))
+	return uint(insp.printAndRecord(false, true, true, values...))
 }
 
-// Print 打印值。此方法仅打印参数，不储存参数。
+// Print 打印值。此方法仅打印参数，不储存参数
 func (insp *Inspector) Print(values ...*Value) {
-	if insp.visible {
-		record := insp.initRecord(values)
-		fmt.Print(record.ToString(insp.sep))
-	}
+	insp.printAndRecord(true, false, true, values...)
 }
 
-// PrintAndRecord 此方法既打印参数又储存参数。
+// JustPrint 此方法仅打印传入参数
+func (insp *Inspector) JustPrint(values ...*Value) {
+	insp.printAndRecord(true, false, false, values...)
+}
+
+// PrintAndRecord 此方法既打印参数又储存参数
 func (insp *Inspector) PrintAndRecord(values ...*Value) uint {
-	record := insp.initRecord(values)
-	if insp.visible {
-		fmt.Print(record.ToString(insp.sep))
+	return uint(insp.printAndRecord(true, true, true, values...))
+}
+
+func (insp *Inspector) printAndRecord(isPrint, isRecord, auto bool, values ...*Value) int {
+	var record Record
+	if isRecord || insp.visible {
+		record = insp.initRecord(values, auto)
+		if isPrint && record.CalCondition(insp.visibleConditions...) {
+			fmt.Print(record.ToString(insp.sep))
+		}
+		if isRecord {
+			return int(insp.records.Append(record))
+		}
 	}
-	return insp.records.Append(record)
+	return -1
 }
 
 // FetchRecord 取回获得id对应的记录。如果id对应的结果不存在或已被清除则返回nil
@@ -217,7 +248,7 @@ func (insp *Inspector) SetSeparator(sep string) {
 }
 
 // SetTypeDecorations 设置类型装饰器。设定后所有被此类型描述的值都将具有这些装饰器。
-func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*decorators.Decorator) error {
+func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*Decorator) error {
 	if label, ok := insp.getLabel(vType); ok {
 		if _, ok := insp.vTypes[label]; ok {
 			insp.vTypes[label] = decos
@@ -234,6 +265,25 @@ func (insp *Inspector) SetVisible(visible bool) {
 	insp.visible = visible
 }
 
+// SetVisibleConditions 设置可见条件，仅满足条件的记录(Record)会被打印
+func (insp *Inspector) SetVisibleConditions(conditions ...Condition) {
+	insp.visibleConditions = conditions
+}
+
+func (insp *Inspector) Range(f func(Record) bool, conditions ...Condition) {
+	insp.records.Range(func(r interface{}) bool {
+		if r == nil {
+			return true
+		}
+		record := r.(Record)
+		if record.CalCondition(conditions...) {
+			return f(record)
+		} else {
+			return true
+		}
+	})
+}
+
 // NewInspector 实例化一个新的检查器，您需要为它命名并指定最大滚动储存的数目。
 func NewInspector(name string, size uint) *Inspector {
 	insp := &Inspector{
@@ -241,7 +291,7 @@ func NewInspector(name string, size uint) *Inspector {
 		records:     ScrollArray.NewScrollArray(size),
 		autoTypes:   map[string]VType{},
 		autoTypeGen: map[string]func() interface{}{},
-		vTypes:      map[string][]*decorators.Decorator{},
+		vTypes:      map[string][]*Decorator{},
 		visible:     true,
 		sep:         " ",
 	}
@@ -281,7 +331,7 @@ func NewInspector(name string, size uint) *Inspector {
 	})
 	*/
 
-	insp.SetOrders("_time") //初始化排序
+	insp.SetOrders("_time", "_func") //初始化排序
 
 	return insp
 }

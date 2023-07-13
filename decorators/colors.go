@@ -1,35 +1,36 @@
 package decorators
 
 import (
+	"github.com/B9O2/Inspector/inspect"
 	colors "github.com/gookit/color"
 )
 
 var (
-	Cyan = NewDecoration("cyan.color", func(i interface{}) interface{} {
+	Cyan = inspect.NewDecoration("cyan.color", func(i interface{}) interface{} {
 		return colors.Cyan
 	})
-	Red = NewDecoration("red.color", func(i interface{}) interface{} {
+	Red = inspect.NewDecoration("red.color", func(i interface{}) interface{} {
 		return colors.Red
 	})
-	Blue = NewDecoration("blue.color", func(i interface{}) interface{} {
+	Blue = inspect.NewDecoration("blue.color", func(i interface{}) interface{} {
 		return colors.Blue
 	})
-	Green = NewDecoration("green.color", func(i interface{}) interface{} {
+	Green = inspect.NewDecoration("green.color", func(i interface{}) interface{} {
 		return colors.Green
 	})
-	Yellow = NewDecoration("yellow.color", func(i interface{}) interface{} {
+	Yellow = inspect.NewDecoration("yellow.color", func(i interface{}) interface{} {
 		return colors.Yellow
 	})
-	Black = NewDecoration("black.color", func(i interface{}) interface{} {
+	Black = inspect.NewDecoration("black.color", func(i interface{}) interface{} {
 		return colors.Black
 	})
-	Magenta = NewDecoration("magenta.color", func(i interface{}) interface{} {
+	Magenta = inspect.NewDecoration("magenta.color", func(i interface{}) interface{} {
 		return colors.Magenta
 	})
-	Gray = NewDecoration("gray.color", func(i interface{}) interface{} {
+	Gray = inspect.NewDecoration("gray.color", func(i interface{}) interface{} {
 		return colors.Gray
 	})
-	White = NewDecoration("white.color", func(i interface{}) interface{} {
+	White = inspect.NewDecoration("white.color", func(i interface{}) interface{} {
 		return colors.White
 	})
 )

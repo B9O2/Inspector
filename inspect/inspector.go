@@ -94,13 +94,14 @@ func (insp *Inspector) newType(auto bool, label string, generator func() interfa
 }
 
 func (insp *Inspector) getLabel(vType interface{}) (string, bool) {
-	if vType == nil {
-		return "", false
-	}
 	label := ""
 	switch vType.(type) {
 	case VType:
-		label = vType.(VType)(nil).typeLabel
+		if vType.(VType) != nil {
+			label = vType.(VType)(nil).typeLabel
+		} else {
+			return "", false
+		}
 	case string:
 		label = vType.(string)
 	default:

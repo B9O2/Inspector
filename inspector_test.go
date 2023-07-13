@@ -45,7 +45,6 @@ func TestNewInspector(t *testing.T) {
 	alpha.Print(UserName("2", decorators.Red))
 	alpha.Print(FileName("test.adwtxt"), EventType(e, decorators.Invisible), UserName("root"))
 	alpha.PrintAndRecord(UserName("admin", decorators.Red))
-
 	/*
 		alpha.Range(func(record inspect.Record) bool {
 			fmt.Print(record.String())

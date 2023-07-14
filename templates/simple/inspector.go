@@ -41,8 +41,8 @@ var (
 			return "[UNKNOWN]"
 		}
 		//根据不同数字装饰不同颜色
-	}, inspect.NewDecoration("level.color", func(i interface{}) interface{} {
-		switch i.(int) {
+	}, inspect.NewDecoration("level.color", func(i *inspect.Value) interface{} {
+		switch i.Data().(int) {
 		case 0:
 			return colors.White
 		case 1:

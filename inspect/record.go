@@ -1,10 +1,8 @@
 package inspect
 
 import (
-	"errors"
 	"fmt"
 	colors "github.com/gookit/color"
-	"reflect"
 	"strings"
 )
 
@@ -28,93 +26,40 @@ func (v Value) Data() interface{} {
 	return v.data
 }
 
+type ValueString struct {
+	text           string
+	color          colors.Style
+	testingReports []TestingReport
+}
+
+func (vs ValueString) String() string {
+	var lines []string
+	for _, line := range strings.Split(vs.text, "\n") {
+		lines = append(lines, vs.color.Sprint(line))
+	}
+	return strings.Join(lines, "\n")
+}
+
 type Record []*Value
 
 func (r Record) String() string {
-	return r.ToString(" ")
+	return r.ToString(" ", false)
 }
 
-func (r Record) CalCondition(conditions ...Condition) bool {
+func (r Record) CalCondition(conditions ...*Decorator) bool {
 	if len(conditions) <= 0 {
 		return true
 	}
 	for _, v := range r {
 		for _, condition := range conditions {
-			if condition(v) {
-				return true
+			if c, ok := condition.Decorate(v).(TestingTag); ok {
+				if c.IsSuccess() {
+					return true
+				}
 			}
 		}
 	}
 	return false
-}
-
-func (r Record) decorate(text string, tags []Tag) (string, colors.Color, []TestingReport) {
-	var color colors.Color
-	var patchTags []Tag
-	var testingResults []TestingReport
-
-	appendErrorTag := func(label string, errText string) {
-		patchTags = append(patchTags, NewTag(
-			label,
-			"error",
-			errors.New(errText)))
-	}
-
-	for _, tag := range tags {
-		data := tag.Data()
-		if data == nil {
-			continue
-		}
-		switch tag.tagType {
-		case "color":
-			switch data.(type) {
-			case colors.Color:
-				color = data.(colors.Color)
-			case colors.RGBColor:
-				color = data.(colors.RGBColor).Color()
-			default:
-				appendErrorTag(tag.Label(), "unknown color type '"+reflect.TypeOf(data).String()+"'")
-			}
-		case "testing":
-			if res, ok := data.(TestingReport); ok {
-				testingResults = append(testingResults, res)
-			} else {
-				appendErrorTag(tag.Label(), "unknown testing type '"+reflect.TypeOf(data).String()+"'")
-			}
-		case "text":
-			if res, ok := data.(string); ok {
-				text = res
-			} else {
-				appendErrorTag(tag.Label(), "unknown text type '"+reflect.TypeOf(data).String()+"'")
-			}
-		case "prefix":
-			if res, ok := data.(string); ok {
-				text = res + text
-			} else {
-				appendErrorTag(tag.Label(), "unknown prefix type '"+reflect.TypeOf(data).String()+"'")
-			}
-		case "suffix":
-			if res, ok := data.(string); ok {
-				text += res
-			} else {
-				appendErrorTag(tag.Label(), "unknown suffix type '"+reflect.TypeOf(data).String()+"'")
-			}
-		case "error":
-			color = colors.Red
-			if err, ok := data.(error); ok {
-				text += fmt.Sprintf("{@%s error: %s}", tag.Label(), err)
-			} else {
-				text += fmt.Sprintf("{@%s error: %s}", tag.Label(), "unknown error type '"+reflect.TypeOf(data).String()+"'")
-			}
-		default:
-			continue
-		}
-	}
-	if len(patchTags) > 0 {
-		return r.decorate(text, patchTags)
-	} else {
-		return text, color, testingResults
-	}
 }
 
 func (r Record) genTestingReport(label string, reports []TestingReport) string {
@@ -136,59 +81,35 @@ func (r Record) genTestingReport(label string, reports []TestingReport) string {
 	)
 }
 
-func (r Record) ToString(sep string) string {
-	var color colors.Color
-	var reports []TestingReport
-	var valueStr string
-	var parts, valueReports []string
+func (r Record) ToString(sep string, showLabel bool) string {
+	var parts []string
+	var endl string
 	for _, v := range r {
-		if v == nil {
+		if v == nil || v.formatter == nil {
 			continue
 		}
-		valueStr = ""
-		color = 0
-		if v.formatter != nil {
-			valueStr = v.formatter(v.data)
-			valueStr, color, reports = r.decorate(valueStr, v.tags)
-			if len(reports) > 0 {
-				valueReports = append(valueReports, r.genTestingReport(v.Label(), reports))
-			}
-		} else {
-			valueStr = fmt.Sprintf("{%s error: no fomatter. value: %v}", v.typeLabel, v.data)
-			color = colors.Red
+		vs := ValueString{
+			text: v.formatter(v.data),
 		}
 
-		if len(valueStr) > 0 || v.Label() == "_end" {
-			var lines []string
-			for _, line := range strings.Split(valueStr, "\n") {
-				lines = append(lines, color.Text(line))
+		for _, tag := range v.tags {
+			if err := tag.Modify(&vs); err != nil {
+				//todo 处理错误
 			}
-			parts = append(parts, strings.Join(lines, "\n"))
+		}
+		part := vs.String()
+		if showLabel {
+			part += v.Label()
+		}
+		if len(part) > 0 && v.Label() != "_end" {
+			parts = append(parts, part)
+		} else {
+			endl = part
 		}
 	}
-	//strings.Join(valueReports, "\n")
-	length := len(parts)
-	if length > 0 {
-		return strings.Join(parts[:length-1], sep) + parts[length-1]
-	} else {
-		return ""
-	}
+	return strings.Join(parts, sep) + endl
 }
 
 func (r Record) StringWithVType(sep string) string {
-	var parts []string
-	part := ""
-	for _, v := range r {
-		if v == nil {
-			continue
-		}
-		if v.formatter != nil {
-			part = fmt.Sprintf("%v", v.data)
-		} else {
-			part = v.formatter(v.data)
-		}
-		part += "<" + v.typeLabel + ">"
-		parts = append(parts, part)
-	}
-	return strings.Join(parts, sep)
+	return r.ToString(sep, true)
 }

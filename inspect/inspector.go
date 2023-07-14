@@ -18,7 +18,7 @@ type Inspector struct {
 	autoTypes         map[string]VType
 	autoTypeGen       map[string]func() interface{}
 	rTypeOrders       []string
-	visibleConditions []Condition
+	visibleConditions []*Decorator
 	visible           bool
 	sep               string
 }
@@ -189,7 +189,7 @@ func (insp *Inspector) initRecord(values []*Value, auto bool) Record {
 		if decos, ok := insp.vTypes[value.typeLabel]; ok {
 			//类型装饰器与额外装饰器
 			for _, deco := range append(decos, value.extraDecorators...) {
-				value.tags = append(value.tags, deco.Decorate(value.data))
+				value.tags = append(value.tags, deco.Decorate(value))
 			}
 		} else {
 			value.formatter = func(i interface{}) string {
@@ -225,7 +225,7 @@ func (insp *Inspector) printAndRecord(isPrint, isRecord, auto bool, values ...*V
 	if isRecord || insp.visible {
 		record = insp.initRecord(values, auto)
 		if isPrint && record.CalCondition(insp.visibleConditions...) {
-			fmt.Print(record.ToString(insp.sep))
+			fmt.Print(record.ToString(insp.sep, false))
 		}
 		if isRecord {
 			return int(insp.records.Append(record))
@@ -267,11 +267,11 @@ func (insp *Inspector) SetVisible(visible bool) {
 }
 
 // SetVisibleConditions 设置可见条件，仅满足条件的记录(Record)会被打印
-func (insp *Inspector) SetVisibleConditions(conditions ...Condition) {
+func (insp *Inspector) SetVisibleConditions(conditions ...*Decorator) {
 	insp.visibleConditions = conditions
 }
 
-func (insp *Inspector) Range(f func(Record) bool, conditions ...Condition) {
+func (insp *Inspector) Range(f func(Record) bool, conditions ...*Decorator) {
 	insp.records.Range(func(r interface{}) bool {
 		if r == nil {
 			return true

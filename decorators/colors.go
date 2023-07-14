@@ -6,31 +6,55 @@ import (
 )
 
 var (
-	Cyan = inspect.NewDecoration("cyan.color", func(i interface{}) interface{} {
+	Cyan = inspect.NewDecoration("cyan.color", func(i *inspect.Value) interface{} {
 		return colors.Cyan
 	})
-	Red = inspect.NewDecoration("red.color", func(i interface{}) interface{} {
+	Red = inspect.NewDecoration("red.color", func(*inspect.Value) interface{} {
 		return colors.Red
 	})
-	Blue = inspect.NewDecoration("blue.color", func(i interface{}) interface{} {
+	Blue = inspect.NewDecoration("blue.color", func(*inspect.Value) interface{} {
 		return colors.Blue
 	})
-	Green = inspect.NewDecoration("green.color", func(i interface{}) interface{} {
+	Green = inspect.NewDecoration("green.color", func(*inspect.Value) interface{} {
 		return colors.Green
 	})
-	Yellow = inspect.NewDecoration("yellow.color", func(i interface{}) interface{} {
+	Yellow = inspect.NewDecoration("yellow.color", func(*inspect.Value) interface{} {
 		return colors.Yellow
 	})
-	Black = inspect.NewDecoration("black.color", func(i interface{}) interface{} {
+	Black = inspect.NewDecoration("black.color", func(*inspect.Value) interface{} {
 		return colors.Black
 	})
-	Magenta = inspect.NewDecoration("magenta.color", func(i interface{}) interface{} {
+	Magenta = inspect.NewDecoration("magenta.color", func(*inspect.Value) interface{} {
 		return colors.Magenta
 	})
-	Gray = inspect.NewDecoration("gray.color", func(i interface{}) interface{} {
+	Gray = inspect.NewDecoration("gray.color", func(*inspect.Value) interface{} {
 		return colors.Gray
 	})
-	White = inspect.NewDecoration("white.color", func(i interface{}) interface{} {
+	White = inspect.NewDecoration("white.color", func(*inspect.Value) interface{} {
 		return colors.White
 	})
+)
+
+func newColorCondition(colorName string) *inspect.Decorator {
+	return NewTesting(colorName+".testing", func(v *inspect.Value) (bool, error) {
+		color := ""
+		for _, tag := range v.Tags() {
+			if t, ok := tag.(inspect.ColorTag); ok {
+				color = t.Name()
+			}
+		}
+		return color == colorName, nil
+	})
+}
+
+var (
+	IsRed     = newColorCondition("red")
+	IsYellow  = newColorCondition("yellow")
+	IsBlue    = newColorCondition("blue")
+	IsCyan    = newColorCondition("cyan")
+	IsBlack   = newColorCondition("black")
+	IsGreen   = newColorCondition("green")
+	IsGray    = newColorCondition("gray")
+	IsWhite   = newColorCondition("white")
+	IsMagenta = newColorCondition("magenta")
 )

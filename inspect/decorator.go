@@ -1,46 +1,23 @@
 package inspect
 
 import (
+	"errors"
 	"fmt"
+	colors "github.com/gookit/color"
+	"reflect"
 	"strings"
 )
-
-type Tag struct {
-	name    string
-	tagType string
-	data    interface{}
-}
-
-func (t Tag) Name() string {
-	return t.name
-}
-
-func (t Tag) Label() string {
-	return t.name + "." + t.tagType
-}
-
-func (t Tag) Type() string {
-	return t.tagType
-}
-func (t Tag) Data() interface{} {
-	return t.data
-}
-
-func NewTag(name string, tagType string, data interface{}) Tag {
-	return Tag{
-		name:    name,
-		tagType: tagType,
-		data:    data,
-	}
-}
 
 // Decorator 装饰器可以对值（Value）进行装饰
 type Decorator struct {
 	label string
 	//todo 装饰器参数
-	decoration func(i interface{}) interface{}
+	decoration func(v *Value) interface{}
 }
 
+func (d Decorator) Label() string {
+	return d.label
+}
 func (d Decorator) parseLabel() (string, string) {
 	suffix := ""
 	parts := strings.Split(d.label, ".")
@@ -49,27 +26,59 @@ func (d Decorator) parseLabel() (string, string) {
 	}
 	return parts[0], suffix
 }
-func (d Decorator) Decorate(i interface{}) (ret Tag) {
+func (d Decorator) Decorate(v *Value) (ret Tag) {
 	name, tagType := d.parseLabel()
 	defer func() {
 		if r := recover(); r != nil {
-			ret = Tag{
-				name:    d.label,
-				tagType: "error",
-				data:    r.(error),
+			ret = ErrorTag{
+				name: name,
+				err:  r.(error),
 			}
 		}
 	}()
-	data := d.decoration(i)
-	return Tag{
-		name:    name,
-		tagType: tagType,
-		data:    data,
+	data := d.decoration(v)
+	switch data.(type) {
+	case colors.Style:
+		ret = ColorStyleTag{
+			name:  name,
+			color: data.(colors.Style),
+		}
+	case colors.Color:
+		ret = ColorTag{
+			name:  name,
+			color: data.(colors.Color),
+		}
+	case string:
+		ret = StringTag{
+			name: name,
+			str:  data.(string),
+			mode: tagType,
+		}
+	case bool:
+		ret = TestingTag{
+			name: name,
+			report: TestingReport{
+				Success: data.(bool),
+				Title:   "Testing <" + name + ">",
+				Detail:  "No detail",
+			},
+		}
+	case TestingReport:
+		ret = TestingTag{
+			name:   name,
+			report: data.(TestingReport),
+		}
+	default:
+		ret = ErrorTag{
+			name: name,
+			err:  errors.New("unknown decorator type '" + reflect.TypeOf(data).String() + "'"),
+		}
 	}
+	return
 }
 
 // NewDecoration 初始化一个新的装饰器。标签需要使用后缀标记其类型，例如："MyRed.color"中包含".color"后缀，因此decoration应当返回colors.Color类型。
-func NewDecoration(label string, decoration func(i interface{}) interface{}) *Decorator {
+func NewDecoration(label string, decoration func(v *Value) interface{}) *Decorator {
 	return &Decorator{
 		label:      label,
 		decoration: decoration,

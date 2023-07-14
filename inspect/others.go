@@ -1,4 +1,4 @@
-package Inspect
+package inspect
 
 import (
 	"os"

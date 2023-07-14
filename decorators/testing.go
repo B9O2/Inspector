@@ -2,9 +2,9 @@ package decorators
 
 import "github.com/B9O2/Inspector/inspect"
 
-func Testing(title string, testFunc func(i interface{}) (bool, error)) *inspect.Decorator {
-	return inspect.NewDecoration("["+title+"].testing", func(i interface{}) interface{} {
-		success, err := testFunc(i)
+func NewTesting(title string, testFunc func(*inspect.Value) (bool, error)) *inspect.Decorator {
+	return inspect.NewDecoration("["+title+"].testing", func(v *inspect.Value) interface{} {
+		success, err := testFunc(v)
 		detail := ""
 		if err != nil {
 			detail = err.Error()

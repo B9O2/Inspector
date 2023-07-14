@@ -37,13 +37,13 @@ func TestNewInspector(t *testing.T) {
 	UserName, _ := alpha.NewType("user", func(i interface{}) string {
 		return "\"" + i.(string) + "\""
 	})
-	//alpha.SetVisibleConditions(conditions.IsGreen)
-	alpha.SetSeparator("|")
-	alpha.SetTypeDecorations("_func", decorators.Invisible)
+	alpha.SetVisibleConditions(decorators.Or(decorators.IsGreen, decorators.IsRed))
 	alpha.JustPrint()
-	alpha.Print(UserName("1", decorators.Yellow, decorators.Green))
+	alpha.Print(UserName("1", decorators.Green))
 	alpha.Print(UserName("2", decorators.Red))
-	alpha.Print(FileName("test.adwtxt"), EventType(e, decorators.Invisible), UserName("root"))
+	alpha.Print(FileName("test.adwtxt", inspect.NewDecoration("hello.text1", func(v *inspect.Value) interface{} {
+		return "aaa"
+	})), EventType(e, decorators.Invisible), UserName("root"))
 	alpha.PrintAndRecord(UserName("admin", decorators.Red))
 	/*
 		alpha.Range(func(record inspect.Record) bool {

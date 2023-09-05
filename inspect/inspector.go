@@ -19,6 +19,7 @@ type Inspector struct {
 	autoTypeGen       map[string]func() interface{}
 	frontDecorators   []*Decorator
 	postDecorators    []*Decorator
+	recordMiddleware  Middleware
 	rTypeOrders       []string
 	visibleConditions []*Decorator
 	visible           bool
@@ -234,6 +235,9 @@ func (insp *Inspector) printAndRecord(isPrint, isRecord, auto bool, values ...*V
 			fmt.Print(record.ToString(insp.sep, false))
 		}
 		if isRecord {
+			if insp.recordMiddleware != nil {
+				record = insp.recordMiddleware.Run(record)
+			}
 			return int(insp.records.Append(record))
 		}
 	}
@@ -275,6 +279,10 @@ func (insp *Inspector) SetFrontDecorations(decos ...*Decorator) {
 // SetPostDecorations 设置后置装饰器
 func (insp *Inspector) SetPostDecorations(decos ...*Decorator) {
 	insp.postDecorators = decos
+}
+
+func (insp *Inspector) SetRecordMiddleware(rm Middleware) {
+	insp.recordMiddleware = rm
 }
 
 // SetVisible 设置输出可见性，如果false则Print()方法不做任何事

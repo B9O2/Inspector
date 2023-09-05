@@ -38,6 +38,10 @@ func TestNewInspector(t *testing.T) {
 		return "\"" + i.(string) + "\""
 	})
 	alpha.SetPostDecorations(decorators.Blue)
+	alpha.SetRecordMiddleware(inspect.NewBaseMiddleware(func(record inspect.Record) inspect.Record {
+		println(record.ToString("/", true))
+		return record
+	}))
 	alpha.SetVisibleConditions(decorators.Or(decorators.IsGreen, decorators.IsRed))
 	alpha.JustPrint()
 	alpha.Print(UserName("1", decorators.Green))

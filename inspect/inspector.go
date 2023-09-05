@@ -232,7 +232,7 @@ func (insp *Inspector) printAndRecord(isPrint, isRecord, auto bool, values ...*V
 	if isRecord || insp.visible {
 		record = insp.initRecord(values, auto)
 		if isPrint && record.CalCondition(insp.visibleConditions...) {
-			fmt.Print(record.ToString(insp.sep, false))
+			fmt.Print(record.ToString(insp.sep, false, false))
 		}
 		if isRecord {
 			if insp.recordMiddleware != nil {

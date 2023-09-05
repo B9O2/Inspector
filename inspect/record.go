@@ -33,6 +33,13 @@ type ValueString struct {
 }
 
 func (vs ValueString) String() string {
+	return vs.ToString(false)
+}
+
+func (vs ValueString) ToString(disableColor bool) string {
+	if disableColor {
+		return vs.text
+	}
 	var lines []string
 	for _, line := range strings.Split(vs.text, "\n") {
 		lines = append(lines, vs.color.Sprint(line))
@@ -43,7 +50,7 @@ func (vs ValueString) String() string {
 type Record []*Value
 
 func (r Record) String() string {
-	return r.ToString(" ", false)
+	return r.ToString(" ", false, false)
 }
 
 func (r Record) CalCondition(conditions ...*Decorator) bool {
@@ -81,7 +88,7 @@ func (r Record) genTestingReport(label string, reports []TestingReport) string {
 	)
 }
 
-func (r Record) ToString(sep string, showLabel bool) string {
+func (r Record) ToString(sep string, showLabel, disableColor bool) string {
 	var parts []string
 	var endl string
 	for _, v := range r {
@@ -97,7 +104,7 @@ func (r Record) ToString(sep string, showLabel bool) string {
 				//todo 处理错误
 			}
 		}
-		part := vs.String()
+		part := vs.ToString(disableColor)
 		if showLabel {
 			part += v.Label()
 		}
@@ -108,8 +115,4 @@ func (r Record) ToString(sep string, showLabel bool) string {
 		}
 	}
 	return strings.Join(parts, sep) + endl
-}
-
-func (r Record) StringWithVType(sep string) string {
-	return r.ToString(sep, true)
 }

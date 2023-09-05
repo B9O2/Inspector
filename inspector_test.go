@@ -39,7 +39,7 @@ func TestNewInspector(t *testing.T) {
 	})
 	alpha.SetPostDecorations(decorators.Blue)
 	alpha.SetRecordMiddleware(inspect.NewBaseMiddleware(func(record inspect.Record) inspect.Record {
-		println(record.ToString("/", true))
+		println(record.ToString("/", false, true))
 		return record
 	}))
 	alpha.SetVisibleConditions(decorators.Or(decorators.IsGreen, decorators.IsRed))

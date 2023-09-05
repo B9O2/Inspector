@@ -17,6 +17,8 @@ type Inspector struct {
 	vTypes            map[string][]*Decorator
 	autoTypes         map[string]VType
 	autoTypeGen       map[string]func() interface{}
+	frontDecorators   []*Decorator
+	postDecorators    []*Decorator
 	rTypeOrders       []string
 	visibleConditions []*Decorator
 	visible           bool
@@ -187,8 +189,12 @@ func (insp *Inspector) initRecord(values []*Value, auto bool) Record {
 	}
 	for _, value := range values {
 		if decos, ok := insp.vTypes[value.typeLabel]; ok {
-			//类型装饰器与额外装饰器
-			for _, deco := range append(decos, value.extraDecorators...) {
+			//在前置装饰器后加入类型装饰器
+			decos = append(insp.frontDecorators, decos...)
+			//在类型装饰器后加入额外装饰器
+			decos = append(decos, value.extraDecorators...)
+			//在额外装饰器后加入后置装饰器
+			for _, deco := range append(decos, insp.postDecorators...) {
 				value.tags = append(value.tags, deco.Decorate(value))
 			}
 		} else {
@@ -259,6 +265,16 @@ func (insp *Inspector) SetTypeDecorations(vType interface{}, decos ...*Decorator
 		}
 	}
 	return errors.New(fmt.Sprintf("[INSP::%s]: '%v' is not a VType.", insp.name, vType))
+}
+
+// SetFrontDecorations 设置前置装饰器
+func (insp *Inspector) SetFrontDecorations(decos ...*Decorator) {
+	insp.frontDecorators = decos
+}
+
+// SetPostDecorations 设置后置装饰器
+func (insp *Inspector) SetPostDecorations(decos ...*Decorator) {
+	insp.postDecorators = decos
 }
 
 // SetVisible 设置输出可见性，如果false则Print()方法不做任何事

@@ -37,6 +37,7 @@ func TestNewInspector(t *testing.T) {
 	UserName, _ := alpha.NewType("user", func(i interface{}) string {
 		return "\"" + i.(string) + "\""
 	})
+	alpha.SetPostDecorations(decorators.Blue)
 	alpha.SetVisibleConditions(decorators.Or(decorators.IsGreen, decorators.IsRed))
 	alpha.JustPrint()
 	alpha.Print(UserName("1", decorators.Green))

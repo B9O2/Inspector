@@ -1,4 +1,4 @@
-package core
+package types
 
 import (
 	"strings"
@@ -8,6 +8,7 @@ import (
 
 type Value struct {
 	Label string
+	Raw   any
 	Text  string
 	Color color.Style
 }
@@ -24,6 +25,6 @@ func (vs Value) ToString(decolorate bool) string {
 	for _, line := range strings.Split(vs.Text, "\n") {
 		lines = append(lines, vs.Color.Sprint(line))
 	}
-	
+
 	return strings.Join(lines, "\n")
 }

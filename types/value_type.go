@@ -1,4 +1,4 @@
-package core
+package types
 
 import (
 	"github.com/B9O2/Inspector/utils"
@@ -12,6 +12,7 @@ func NewType(label string, formatter func(any) string, extraDecos ...Decorator) 
 		return func(v any, decos ...Decorator) *Value {
 			return &Value{
 				Label: label,
+				Raw:   v,
 				Text:  "{#" + label + " init error: formatter is nil}",
 				Color: utils.PanicStyle,
 			}
@@ -28,6 +29,7 @@ func NewType(label string, formatter func(any) string, extraDecos ...Decorator) 
 
 		value = &Value{
 			Label: label,
+			Raw:   v,
 			Color: utils.DefaultStyle,
 		}
 

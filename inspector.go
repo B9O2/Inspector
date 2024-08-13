@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/B9O2/Inspector/core"
-	valuetypes "github.com/B9O2/Inspector/value_types"
+	"github.com/B9O2/Inspector/types"
+	"github.com/B9O2/Inspector/useful"
 	"github.com/B9O2/NStruct/ScrollArray"
 )
 
@@ -19,8 +19,8 @@ type LogConifg struct {
 type Inspector struct {
 	name                       string
 	records                    *ScrollArray.ScrollArray
-	autoValues                 map[string]func() *core.Value
-	recordMiddleware           Middleware
+	autoValues                 map[string]func() *types.Value
+	middlewares                []types.Middleware
 	prefixOrders, suffixOrders []string
 	visible                    bool
 	showLabel                  bool
@@ -28,13 +28,14 @@ type Inspector struct {
 	decolorate                 bool
 	sep                        string
 	writer                     io.Writer
+	enable                     bool
 }
 
-func (insp *Inspector) SetAutoValue(label string, generator func() any, vt core.ValueType) error {
+func (insp *Inspector) SetAutoValue(label string, generator func() any, vt types.ValueType) error {
 	if generator == nil {
 		return errors.New(label + "(Auto): generator is nil")
 	}
-	insp.autoValues[label] = func() *core.Value {
+	insp.autoValues[label] = func() *types.Value {
 		return vt(generator())
 	}
 	return nil
@@ -64,8 +65,12 @@ func (insp *Inspector) SetSuffixOrders(orders ...string) {
 	insp.suffixOrders = orders
 }
 
-func (insp *Inspector) initRecord(auto bool, values []*core.Value) core.Record {
-	var allValues []*core.Value
+func (insp *Inspector) SetEnable(enable bool) {
+	insp.enable = enable
+}
+
+func (insp *Inspector) initRecord(auto bool, values []*types.Value) types.Record {
+	var allValues []*types.Value
 	if auto {
 		for _, label := range insp.prefixOrders {
 			allValues = append(allValues, insp.autoValues[label]())
@@ -80,34 +85,41 @@ func (insp *Inspector) initRecord(auto bool, values []*core.Value) core.Record {
 		}
 	}
 
-	return core.Record(allValues)
+	return types.Record(allValues)
 }
 
 // Print 打印值与自动生成的值
-func (insp *Inspector) Print(values ...*core.Value) uint {
+func (insp *Inspector) Print(values ...*types.Value) int {
 	return insp.printAndRecord(true, values...)
 }
 
 // JustPrint 此方法仅打印传入的值
-func (insp *Inspector) JustPrint(values ...*core.Value) uint {
+func (insp *Inspector) JustPrint(values ...*types.Value) int {
 	return insp.printAndRecord(false, values...)
 }
 
-func (insp *Inspector) printAndRecord(auto bool, values ...*core.Value) uint {
+func (insp *Inspector) printAndRecord(auto bool, values ...*types.Value) int {
+	if !insp.enable {
+		return -1
+	}
 	record := insp.initRecord(auto, values)
-	if insp.recordMiddleware != nil {
-		record = insp.recordMiddleware.Run(record)
+	for _, middleware := range insp.middlewares {
+		record = middleware.Run(record)
 	}
-	if insp.visible && insp.writer != nil {
-		insp.writer.Write([]byte(record.ToString(insp.sep, insp.showLabel, insp.decolorate)))
+	if len(record) > 0 {
+		if insp.visible && insp.writer != nil {
+			insp.writer.Write([]byte(record.ToString(insp.sep, insp.showLabel, insp.decolorate)))
+		}
+		return int(insp.records.Append(record))
+	} else {
+		return -1
 	}
-	return insp.records.Append(record)
 }
 
 // FetchRecord 取回获得id对应的记录。如果id对应的结果不存在或已被清除则返回nil
-func (insp *Inspector) FetchRecord(id uint) core.Record {
+func (insp *Inspector) FetchRecord(id uint) types.Record {
 	if r, ok := insp.records.LoadWithEid(id); ok {
-		return r.(core.Record)
+		return r.(types.Record)
 	} else {
 		return nil
 	}
@@ -118,8 +130,8 @@ func (insp *Inspector) SetSeparator(sep string) {
 	insp.sep = sep
 }
 
-func (insp *Inspector) SetRecordMiddleware(rm Middleware) {
-	insp.recordMiddleware = rm
+func (insp *Inspector) SetRecordMiddleware(rms ...types.Middleware) {
+	insp.middlewares = rms
 }
 
 // SetVisible 设置输出可见性，如果false则Print()方法不做任何事
@@ -136,12 +148,12 @@ func (insp *Inspector) SetWriter(w io.Writer) {
 	insp.writer = w
 }
 
-func (insp *Inspector) Range(f func(core.Record) bool) {
+func (insp *Inspector) Range(f func(types.Record) bool) {
 	insp.records.Range(func(r interface{}) bool {
 		if r == nil {
 			return true
 		}
-		record := r.(core.Record)
+		record := r.(types.Record)
 		return f(record)
 	})
 }
@@ -151,26 +163,27 @@ func NewInspector(name string, size uint) *Inspector {
 	insp := &Inspector{
 		name:       name,
 		records:    ScrollArray.NewScrollArray(size),
-		autoValues: map[string]func() *core.Value{},
+		autoValues: map[string]func() *types.Value{},
 		visible:    true,
 		record:     true,
 		decolorate: false,
 		showLabel:  false,
 		sep:        " ",
 		writer:     os.Stdout,
+		enable:     true,
 	}
 
 	insp.SetAutoValue("_start", func() any {
 		return ">"
-	}, valuetypes.Text)
+	}, useful.Text)
 
 	insp.SetAutoValue("_time", func() any {
 		return time.Now()
-	}, valuetypes.Time)
+	}, useful.Time)
 
 	insp.SetAutoValue("_end", func() any {
 		return "\n"
-	}, valuetypes.Text)
+	}, useful.Text)
 
 	insp.SetPrefixOrders("_start", "_time")
 	insp.SetSuffixOrders("_end")

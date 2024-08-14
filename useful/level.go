@@ -10,11 +10,11 @@ var (
 		name := ""
 		switch a.(int) {
 		case 0:
-			name = "INFO"
-		case 1:
 			name = "ERROR"
-		case 2:
+		case 1:
 			name = "WARN"
+		case 2:
+			name = "INFO"
 		case 3:
 			name = "DEBUG"
 		default:
@@ -25,13 +25,13 @@ var (
 )
 
 var (
-	INFO  = Level(0)
-	ERROR = Level(1, decorators.Red)
-	WARN  = Level(2, decorators.Yellow)
+	ERROR = Level(0, decorators.Red)
+	WARN  = Level(1, decorators.Yellow)
+	INFO  = Level(2)
 	DEBUG = Level(3, decorators.Cyan)
 )
 
-func LevelFliter(limit *types.Value) types.Middleware {
+func LevelFilter(limit *types.Value) types.Middleware {
 	return types.NewBaseMiddleware(func(r types.Record) types.Record {
 		show := true
 		if l, ok := limit.Raw.(int); ok {

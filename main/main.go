@@ -14,7 +14,7 @@ func main() {
 
 	insp := inspect.NewInspector("main", 99)
 	//insp.SetWriter(nc)
-	insp.SetRecordMiddleware(useful.LevelFliter(useful.DEBUG))
+	insp.SetRecordMiddleware(useful.LevelFilter(useful.DEBUG))
 	insp.SetEnable(true)
 	insp.JustPrint(useful.ERROR, useful.Text("\n"))
 	insp.Print(useful.INFO, useful.Text("Hello World!", decorators.Cyan))
